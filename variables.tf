@@ -99,5 +99,5 @@ variable "additional_certs" {
 variable "enable_vault" {
   description = "Deploy httpbin into the cluster as a test application"
   type        = bool
-  default     = false
+  default     = true
 }
