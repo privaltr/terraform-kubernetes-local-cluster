@@ -96,3 +96,8 @@ variable "additional_certs" {
   type        = map(list(string))
   default     = {}
 }
+variable "enable_vault" {
+  description = "Deploy httpbin into the cluster as a test application"
+  type        = bool
+  default     = false
+}
