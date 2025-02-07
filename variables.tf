@@ -70,7 +70,7 @@ variable "certs_path" {
 variable "enable_httpbin" {
   description = "Deploy httpbin into the cluster as a test application"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "cidr_start" {
