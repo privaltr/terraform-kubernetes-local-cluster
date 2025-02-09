@@ -27,28 +27,54 @@ resource "helm_release" "argocd" {
     value = "false"
   }
 
-  # Supply static credentials & API token values for development.
-  # username: admin / password: admin123
   values = [<<YAML
 configs:
   cm:
     "accounts.kind_cluster": "apiKey,login"
-  params:
-    server.insecure: true
-  secret:
-    createSecret: true
-
-    argocdServerAdminPassword: "$2a$10$KVscBZGucWmkXd5HtFwSHeVGKrKJM9EfRotC9N.V6tbwrftV3ab.a"
-    argocdServerAdminPasswordMtime: "2023-02-22T21:33:46Z"
-
-    extra:
-      # API Token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhcmdvY2QiLCJzdWIiOiJydWJyaWthOmFwaUtleSIsIm5iZiI6MTY5Mzg3OTU0NSwiaWF0IjoxNjkzODc5NTQ1LCJqdGkiOiJydWJyaWthLXRpbHQifQ.SIjQqXR2bT0wwOPRJEHSSTRi9Er-1qxGDOTyyQBSnO0
-      "accounts.kind_cluster.tokens": "[{\"id\":\"kind_cluster\",\"iat\":1693879545}]"        
-
+    "kustomize.buildOptions": "--enable-alpha-plugins"
+    "plugin.argocd-vault-plugin": |
+      name: argocd-vault-plugin
+      generate:
+        command: ["argocd-vault-plugin"]
+        args: ["generate", "./"]
+params:
+  server.insecure: true
+secret:
+  createSecret: true
+  argocdServerAdminPassword: "$2a$10$KVscBZGucWmkXd5HtFwSHeVGKrKJM9EfRotC9N.V6tbwrftV3ab.a"
+  argocdServerAdminPasswordMtime: "2023-02-22T21:33:46Z"
+  extra:
+    "accounts.kind_cluster.tokens": "[{\"id\":\"kind_cluster\",\"iat\":1693879545}]"
+repoServer:  # <-- Top-level key
+  env:
+    - name: VAULT_SKIP_VERIFY
+      value: "true"
+    - name: ARGOCD_ENABLE_VAULT_PLUGIN
+      value: "true"
+    - name: VAULT_ADDR
+      value: "http://vault.default.svc.cluster.local:8200"
+    - name: VAULT_TOKEN
+      value: "root"
+  extraInitContainers:  # <-- Directly under repoServer
+    - name: install-vault-plugin
+      image: alpine:latest
+      command: ["/bin/sh", "-c"]
+      args:
+        - |
+          wget -O /custom-tools/argocd-vault-plugin https://github.com/argoproj-labs/argocd-vault-plugin/releases/download/v1.7.0/argocd-vault-plugin_1.7.0_linux_amd64
+          chmod +x /custom-tools/argocd-vault-plugin
+      volumeMounts:
+        - name: custom-tools
+          mountPath: /custom-tools
+  volumes:
+    - name: custom-tools
+      emptyDir: {}
+  volumeMounts:
+    - name: custom-tools
+      mountPath: /usr/local/bin/argocd-vault-plugin  # Mount to the same path as the plugin binary
+      subPath: argocd-vault-plugin
 YAML
-
   ]
-
   depends_on = [
     kind_cluster.default,
     helm_release.cilium,
