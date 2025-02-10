@@ -205,7 +205,7 @@ spec:
           - name: ARGOCD_ENABLE_VAULT_PLUGIN
             value: "true"
           - name: VAULT_ADDR
-            value: "http://vault.default.svc.cluster.local:8200"  # Adjust based on your Vault URL
+            value: "http://vault.${var.vault_namespace}.svc.cluster.local:8200"  # Adjust based on your Vault URL
           - name: VAULT_TOKEN
             value: "root"
             # valueFrom:

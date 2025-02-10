@@ -1,8 +1,22 @@
+# Vault Namespace Creation
+resource "kubectl_manifest" "vault_namespace" {
+  count     = var.enable_vault ? 1 : 0
+  yaml_body = <<YAML
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${var.vault_namespace}
+YAML
+  depends_on = [
+    kind_cluster.default
+  ]
+}
+
 # Vault TLS Module
 module "vault_tls" {
   count     = var.enable_vault ? 1 : 0
   source    = "./modules/tls-cert"
-  namespace = "default"
+  namespace = var.vault_namespace
   dns_names = [
     "vault.${var.base_domain}"
   ]
@@ -14,36 +28,6 @@ module "vault_tls" {
   ]
 }
 
-# # Vault Helm Release (Optional)
-# resource "helm_release" "vault" {
-#   count       = var.enable_vault ? 1 : 0
-#   name        = "vault"
-#   repository  = "https://helm.releases.hashicorp.com"
-#   chart       = "vault"
-#   version     = "0.18.0"
-#   namespace   = "default"
-
-#   set {
-#     name  = "server.ha.enabled"
-#     value = "false"
-#   }
-
-#   set {
-#     name  = "injector.enabled"
-#     value = "true"
-#   }
-
-#   set {
-#     name  = "server.dev.enabled"
-#     value = "false"
-#   }
-
-#   depends_on = [
-#     kind_cluster.default,
-#     helm_release.cert_manager,
-#   ]
-# }
-
 # Vault Service
 resource "kubectl_manifest" "vault_service" {
   count     = var.enable_vault ? 1 : 0
@@ -52,7 +36,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: vault
-  namespace: default
+  namespace: ${var.vault_namespace}
   labels:
     app: vault
     service: vault
@@ -80,7 +64,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: vault
-  namespace: default
+  namespace: ${var.vault_namespace}
 spec:
   replicas: 1
   selector:
@@ -119,7 +103,7 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: vault
-  namespace: default
+  namespace: ${var.vault_namespace}
 spec:
   virtualhost:
     fqdn: vault.${var.base_domain}

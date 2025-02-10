@@ -101,3 +101,9 @@ variable "enable_vault" {
   type        = bool
   default     = true
 }
+
+variable "vault_namespace" {
+  description = "Namespace where Hashicorp resources will be created"
+  type        = string
+  default     = "vault"
+}
