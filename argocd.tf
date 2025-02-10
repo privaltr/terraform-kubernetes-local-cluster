@@ -50,29 +50,6 @@ repoServer:  # <-- Top-level key
   volumes:
     - name: custom-tools
       emptyDir: {}
-  env:
-    - name: AVP_TYPE
-      value: "vault"
-    - name: AVP_AUTH_TYPE
-      value: "token"
-    - name: VAULT_SKIP_VERIFY
-      value: "true"
-    - name: ARGOCD_ENABLE_VAULT_PLUGIN
-      value: "true"
-    - name: VAULT_ADDR
-      value: "http://vault.default.svc.cluster.local:8200"
-    - name: VAULT_TOKEN
-      value: "root"
-  initContainers:
-    - name: install-vault-plugin
-      image: alpine:3.8
-      command: ["/bin/sh", "-c"]
-      args:
-        - wget -O /custom-tools/argocd-vault-plugin https://github.com/argoproj-labs/argocd-vault-plugin/releases/download/v1.7.0/argocd-vault-plugin_1.7.0_linux_amd64 && 
-          chmod +x /custom-tools/argocd-vault-plugin
-      volumeMounts:
-        - name: custom-tools
-          mountPath: /custom-tools
   volumeMounts:
     - name: custom-tools
       mountPath: /usr/local/bin/argocd-vault-plugin
@@ -130,4 +107,110 @@ YAML
     kubectl_manifest.argo_crd,
     module.argo_tls,
   ]
+}
+
+resource "kubectl_manifest" "cmp_plugin" {
+  yaml_body = <<YAML
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cmp-plugin
+  namespace: ${helm_release.argocd.namespace}
+data:
+  avp.yaml: |
+    apiVersion: argoproj.io/v1alpha1
+    kind: ConfigManagementPlugin
+    metadata:
+      name: argocd-vault-plugin
+    spec:
+      allowConcurrency: true
+      discover:
+        find:
+          command:
+            - sh
+            - "-c"
+            - "find . -name '*.yaml' | xargs -I {} grep \"<path\\|avp\\.kubernetes\\.io\" {} | grep ."
+      generate:
+        command:
+          - argocd-vault-plugin
+          - generate
+          - "."
+      lockRepo: false
+YAML
+}
+
+resource "kubectl_manifest" "argocd_repo_server_deployment" {
+  yaml_body = <<YAML
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-repo-server
+  namespace: ${helm_release.argocd.namespace}
+spec:
+  template:
+    spec:
+      automountServiceAccountToken: true
+      volumes:
+        - configMap:
+            name: cmp-plugin
+          name: cmp-plugin
+        - name: custom-tools
+          emptyDir: {}
+      initContainers:
+      - name: download-tools
+        image: registry.access.redhat.com/ubi8
+        env:
+          - name: AVP_VERSION
+            value: 1.16.1
+        command: [sh, -c]
+        args:
+          - >-
+            curl -L https://github.com/argoproj-labs/argocd-vault-plugin/releases/download/v$(AVP_VERSION)/argocd-vault-plugin_$(AVP_VERSION)_linux_amd64 -o argocd-vault-plugin &&
+            chmod +x argocd-vault-plugin &&
+            mv argocd-vault-plugin /custom-tools/
+        volumeMounts:
+          - mountPath: /custom-tools
+            name: custom-tools
+      containers:
+      - name: avp
+        command: [/var/run/argocd/argocd-cmp-server]
+        image: registry.access.redhat.com/ubi8
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 999
+        volumeMounts:
+          - mountPath: /var/run/argocd
+            name: var-files
+          - mountPath: /home/argocd/cmp-server/plugins
+            name: plugins
+          - mountPath: /tmp
+            name: tmp
+
+          # Register plugins into sidecar
+          - mountPath: /home/argocd/cmp-server/config/plugin.yaml
+            subPath: avp.yaml
+            name: cmp-plugin
+
+          # Important: Mount tools into $PATH
+          - name: custom-tools
+            subPath: argocd-vault-plugin
+            mountPath: /usr/local/bin/argocd-vault-plugin
+        env:
+          - name: AVP_TYPE
+            value: "vault"
+          - name: AVP_AUTH_TYPE
+            value: "token"
+          - name: VAULT_SKIP_VERIFY
+            value: "true"
+          - name: ARGOCD_ENABLE_VAULT_PLUGIN
+            value: "true"
+          - name: VAULT_ADDR
+            value: "http://vault.default.svc.cluster.local:8200"  # Adjust based on your Vault URL
+          - name: VAULT_TOKEN
+            value: "root"
+            # valueFrom:
+            #   secretKeyRef:
+            #     name: vault-config-secret  # Reference the Vault config secret
+            #     key: vault-token
+YAML
 }
