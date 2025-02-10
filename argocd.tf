@@ -31,30 +31,30 @@ resource "helm_release" "argocd" {
 configs:
   cm:
     "accounts.kind_cluster": "apiKey,login"
-    "kustomize.buildOptions": "--enable-alpha-plugins"
-    "plugin.argocd-vault-plugin": |
-      name: argocd-vault-plugin
-      generate:
-        command: ["argocd-vault-plugin"]
-        args: ["generate", "./"]
+  params:
+    server.insecure: true
+  secret:
+    createSecret: true
+
+    argocdServerAdminPassword: "$2a$10$KVscBZGucWmkXd5HtFwSHeVGKrKJM9EfRotC9N.V6tbwrftV3ab.a"
+    argocdServerAdminPasswordMtime: "2023-02-22T21:33:46Z"
+
+    extra:
+      # API Token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhcmdvY2QiLCJzdWIiOiJydWJyaWthOmFwaUtleSIsIm5iZiI6MTY5Mzg3OTU0NSwiaWF0IjoxNjkzODc5NTQ1LCJqdGkiOiJydWJyaWthLXRpbHQifQ.SIjQqXR2bT0wwOPRJEHSSTRi9Er-1qxGDOTyyQBSnO0
+      "accounts.kind_cluster.tokens": "[{\"id\":\"kind_cluster\",\"iat\":1693879545}]"  
 server:
   insecure: true  # Allow HTTP access
   extraArgs:
     - --insecure  # Disable HTTPS enforcement
-params:
-  server.insecure: true
-secret:
-  createSecret: true
-  argocdServerAdminPassword: "$2a$10$T5XWZ0Zt5X7WUq7X7q3ZQjO.5z3Zq3ZQjO.5z3Zq3ZQjO.5z3Zq3ZQjO"
-  argocdServerAdminPasswordMtime: "2023-02-22T21:33:46Z"
-  extra:
-    # API Token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhcmdvY2QiLCJzdWIiOiJydWJyaWthOmFwaUtleSIsIm5iZiI6MTY5Mzg3OTU0NSwiaWF0IjoxNjkzODc5NTQ1LCJqdGkiOiJydWJyaWthLXRpbHQifQ.SIjQqXR2bT0wwOPRJEHSSTRi9Er-1qxGDOTyyQBSnO0
-    "accounts.kind_cluster.tokens": "[{\"id\":\"kind_cluster\",\"iat\":1693879545}]"
 repoServer:  # <-- Top-level key
   volumes:
     - name: custom-tools
       emptyDir: {}
   env:
+    - name: AVP_TYPE
+      value: "vault"
+    - name: AVP_AUTH_TYPE
+      value: "token"
     - name: VAULT_SKIP_VERIFY
       value: "true"
     - name: ARGOCD_ENABLE_VAULT_PLUGIN
