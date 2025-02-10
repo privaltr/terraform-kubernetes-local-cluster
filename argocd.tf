@@ -51,6 +51,9 @@ secret:
     # API Token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJhcmdvY2QiLCJzdWIiOiJydWJyaWthOmFwaUtleSIsIm5iZiI6MTY5Mzg3OTU0NSwiaWF0IjoxNjkzODc5NTQ1LCJqdGkiOiJydWJyaWthLXRpbHQifQ.SIjQqXR2bT0wwOPRJEHSSTRi9Er-1qxGDOTyyQBSnO0
     "accounts.kind_cluster.tokens": "[{\"id\":\"kind_cluster\",\"iat\":1693879545}]"
 repoServer:  # <-- Top-level key
+  volumes:
+    - name: custom-tools
+      emptyDir: {}
   env:
     - name: VAULT_SKIP_VERIFY
       value: "true"
@@ -60,23 +63,19 @@ repoServer:  # <-- Top-level key
       value: "http://vault.default.svc.cluster.local:8200"
     - name: VAULT_TOKEN
       value: "root"
-  extraInitContainers:  # <-- Directly under repoServer
+  initContainers:
     - name: install-vault-plugin
-      image: alpine:latest
+      image: alpine:3.8
       command: ["/bin/sh", "-c"]
       args:
-        - |
-          wget -O /custom-tools/argocd-vault-plugin https://github.com/argoproj-labs/argocd-vault-plugin/releases/download/v1.7.0/argocd-vault-plugin_1.7.0_linux_amd64
+        - wget -O /custom-tools/argocd-vault-plugin https://github.com/argoproj-labs/argocd-vault-plugin/releases/download/v1.7.0/argocd-vault-plugin_1.7.0_linux_amd64 && 
           chmod +x /custom-tools/argocd-vault-plugin
       volumeMounts:
         - name: custom-tools
           mountPath: /custom-tools
-  volumes:
-    - name: custom-tools
-      emptyDir: {}
   volumeMounts:
     - name: custom-tools
-      mountPath: /usr/local/bin/argocd-vault-plugin  # Mount to the same path as the plugin binary
+      mountPath: /usr/local/bin/argocd-vault-plugin
       subPath: argocd-vault-plugin
 YAML
   ]
