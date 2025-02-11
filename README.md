@@ -1,7 +1,7 @@
 # Manage a local kind cluster
 This module will spin you up a local kind cluster that is provisioned closer to
 a "real" cluster.  It includes an ingress controller, loadbalancer,
-certificates, and an image registry.
+certificates, vault, and an image registry.
 
 Make sure you have [kind](https://kind.sigs.k8s.io/) installed.
 
