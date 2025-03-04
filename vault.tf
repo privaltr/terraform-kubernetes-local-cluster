@@ -114,7 +114,7 @@ resource "helm_release" "vault_deployment" {
   # Storage settings
   set {
     name  = "server.dataStorage.enabled"
-    value = "true"  # Enable storage
+    value = "false"  # Enable storage
   }
 
   set {
