@@ -28,69 +28,39 @@ module "vault_tls" {
   ]
 }
 
-# Vault Service
-resource "kubectl_manifest" "vault_service" {
-  count     = var.enable_vault ? 1 : 0
-  yaml_body = <<YAML
-apiVersion: v1
-kind: Service
-metadata:
-  name: vault
-  namespace: ${var.vault_namespace}
-  labels:
-    app: vault
-    service: vault
-spec:
-  ports:
-  - name: http
-    port: 8200
-    targetPort: 8200
-  selector:
-    app: vault
-YAML
-  depends_on = [
-    kind_cluster.default,
-    helm_release.cert_manager,
-    kubectl_manifest.argo_crd,
-    module.vault_tls,
-  ]
-}
+# Vault Helm Release
+resource "helm_release" "vault_deployment" {
+  count            = var.enable_vault ? 1 : 0
+  name             = "vault"
+  repository       = "https://helm.releases.hashicorp.com"
+  chart            = "vault"
+  namespace        = var.vault_namespace
+  create_namespace = true
 
-# Vault Deployment
-resource "kubectl_manifest" "vault_deployment" {
-  count     = var.enable_vault ? 1 : 0
-  yaml_body = <<YAML
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: vault
-  namespace: ${var.vault_namespace}
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: vault
-      version: v1
-  template:
-    metadata:
-      labels:
-        app: vault
-        version: v1
-    spec:
-      containers:
-      - image: hashicorp/vault:latest
-        imagePullPolicy: IfNotPresent
-        name: vault
-        ports:
-        - containerPort: 8200
-        env:
-        - name: VAULT_DEV_ROOT_TOKEN_ID
-          value: "root"
-YAML
+  set {
+    name  = "server.dev.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "server.dev.devRootToken"
+    value = "root"
+  }
+
+  set {
+    name  = "server.service.type"
+    value = "ClusterIP"
+  }
+
+  set {
+    name  = "server.service.port"
+    value = 8200
+  }
+
   depends_on = [
     kind_cluster.default,
     helm_release.cert_manager,
-    kubectl_manifest.vault_service,
+    # kubectl_manifest.vault_service,
     module.vault_tls,
   ]
 }
@@ -119,7 +89,7 @@ YAML
   depends_on = [
     kind_cluster.default,
     helm_release.cert_manager,
-    kubectl_manifest.vault_deployment,
+    helm_release.vault_deployment,
     module.vault_tls,
   ]
 }
