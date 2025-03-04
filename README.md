@@ -1,7 +1,7 @@
 # Manage a local kind cluster
 This module will spin you up a local kind cluster that is provisioned closer to
 a "real" cluster.  It includes an ingress controller, loadbalancer,
-certificates, and an image registry.
+certificates, vault, and an image registry.
 
 Make sure you have [kind](https://kind.sigs.k8s.io/) installed.
 
@@ -57,7 +57,7 @@ external IP, for example if your base-domain is `local-cluster.dev` then you
 can add this line:
 
 ```
-192.168.228.200 local-cluster.dev trow.local-cluster.dev argocd.local-cluster.dev httpbin.local-cluster.dev
+192.168.228.200 local-cluster.dev trow.local-cluster.dev argocd.local-cluster.dev httpbin.local-cluster.dev vault.local-cluster.dev 
 ```
 
 Now you will have access to:
@@ -70,6 +70,9 @@ https://argocd.local-cluster.dev
 
 HTTPBin:
 https://httpbin.local-cluster.dev
+
+HashiCorp Vault
+https://vault.local-cluster.dev
 
 # Multiple Clusters
 If you want to run multiple clusters with this module you'll want the clusters
