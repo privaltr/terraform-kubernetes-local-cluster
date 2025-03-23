@@ -199,18 +199,22 @@ spec:
           - name: AVP_TYPE
             value: "vault"
           - name: AVP_AUTH_TYPE
-            value: "token"
+            value: "userpass"
+            # value: "kubernetes"
+            # value: "token"
+          - name: AVP_USERNAME
+            value: "argocd"
+          - name: AVP_PASSWORD
+            value: "root"
+          - name: VAULT_ROLE
+            value: "argocd"
           - name: VAULT_SKIP_VERIFY
             value: "true"
           - name: ARGOCD_ENABLE_VAULT_PLUGIN
             value: "true"
           - name: VAULT_ADDR
             value: "http://vault.${var.vault_namespace}.svc.cluster.local:8200"  # Adjust based on your Vault URL
-          - name: VAULT_TOKEN
-            value: "root"
-            # valueFrom:
-            #   secretKeyRef:
-            #     name: vault-config-secret  # Reference the Vault config secret
-            #     key: vault-token
+          # - name: VAULT_TOKEN
+          #   value: "root"
 YAML
 }
