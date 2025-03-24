@@ -107,3 +107,21 @@ variable "vault_namespace" {
   type        = string
   default     = "vault"
 }
+
+variable "enable_k10" {
+  description = "Deploy kasten k10 into the cluster as a test application"
+  type        = bool
+  default     = true
+}
+
+variable "k10_namespace" {
+  description = "Namespace where Hashicorp resources will be created"
+  type        = string
+  default     = "kasten-k10"
+}
+
+variable "k10_admin_password" {
+  description = "Admin password"
+  type        = string
+  default     = "test"
+}
