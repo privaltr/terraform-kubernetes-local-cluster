@@ -37,6 +37,19 @@ resource "helm_release" "kasten_k10_deployment" {
   version          = "7.5.8"  # Use the latest stable version
   namespace        = var.k10_namespace
   create_namespace = true
+  timeout          = 420  # Increased timeout to 20 minutes (1200 seconds)
+
+
+  # Add storage configuration
+  set {
+    name  = "global.persistence.storageClass"
+    value = "standard"
+  }
+
+  set {
+    name  = "global.persistence.size"
+    value = "50Gi"
+  }
 
   depends_on = [
     kind_cluster.default,
