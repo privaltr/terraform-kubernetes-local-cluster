@@ -1,5 +1,6 @@
 # https://github.com/ContainerSolutions/trow/blob/main/docs/HELM_INSTALL.md
 resource "helm_release" "trow" {
+  count            = var.use_trow ? 1 : 0
   name             = "trow"
   repository       = "https://trow.io"
   chart            = "trow"
@@ -14,8 +15,9 @@ resource "helm_release" "trow" {
 }
 
 module "trow_tls" {
+  count     = var.use_trow ? 1 : 0
   source    = "./modules/tls-cert"
-  namespace = helm_release.trow.namespace
+  namespace = var.trow_namespace
   dns_names = [
     "trow.${var.base_domain}"
   ]
@@ -29,17 +31,18 @@ module "trow_tls" {
 }
 
 resource "kubectl_manifest" "trow_ingress" {
+  count     = var.use_trow ? 1 : 0
   yaml_body = <<YAML
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   name: trow
-  namespace: ${helm_release.trow.namespace}
+  namespace: ${var.trow_namespace}
 spec:
   virtualhost:
     fqdn: trow.${var.base_domain}
     tls:
-      secretName: ${module.trow_tls.cert_secret}
+      secretName: ${module.trow_tls[0].cert_secret}
   routes:
     - conditions:
       - prefix: /
@@ -58,6 +61,7 @@ YAML
 }
 
 resource "kubectl_manifest" "registry_config_map" {
+  count     = var.use_trow ? 1 : 0
   yaml_body = <<YAML
 apiVersion: v1
 kind: ConfigMap

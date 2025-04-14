@@ -16,7 +16,7 @@ YAML
 module "vault_tls" {
   count     = var.enable_vault ? 1 : 0
   source    = "./modules/tls-cert"
-  namespace = var.vault_namespace
+  namespace = "istio-system"
   dns_names = [
     "vault.${var.base_domain}"
   ]
@@ -170,31 +170,91 @@ resource "helm_release" "vault_deployment" {
   ]
 }
 
-# Vault Ingress
-resource "kubectl_manifest" "vault_ingress" {
+# # Vault Ingress
+# resource "kubectl_manifest" "vault_ingress" {
+#   count     = var.enable_vault ? 1 : 0
+#   yaml_body = <<YAML
+# apiVersion: projectcontour.io/v1
+# kind: HTTPProxy
+# metadata:
+#   name: vault
+#   namespace: ${var.vault_namespace}
+# spec:
+#   virtualhost:
+#     fqdn: vault.${var.base_domain}
+#     tls:
+#       secretName: ${module.vault_tls[0].cert_secret}
+#   routes:
+#     - conditions:
+#       - prefix: /
+#       services:
+#         - name: vault
+#           port: 8200
+# YAML
+#   depends_on = [
+#     kind_cluster.default,
+#     helm_release.cert_manager,
+#     helm_release.vault_deployment,
+#     module.vault_tls,
+#   ]
+# }
+
+
+
+resource "kubectl_manifest" "vault_istio_gateway" {
   count     = var.enable_vault ? 1 : 0
   yaml_body = <<YAML
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: vault-gateway
+  namespace: ${var.vault_namespace}
+spec:
+  selector:
+    istio: ingressgateway  # This matches the Istio ingress gateway service
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: ${module.vault_tls[0].cert_secret}  # Must exist in the same namespace as istio ingress gateway (default is istio-system)
+      hosts:
+        - vault.${var.base_domain}
+YAML
+  depends_on = [
+    kind_cluster.default,
+    helm_release.vault_deployment,
+    helm_release.cert_manager,
+    module.vault_tls,
+    helm_release.istio_ingress,
+  ]
+}
+resource "kubectl_manifest" "vault_virtualservice" {
+  count     = var.enable_vault ? 1 : 0
+  yaml_body = <<YAML
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
 metadata:
   name: vault
   namespace: ${var.vault_namespace}
 spec:
-  virtualhost:
-    fqdn: vault.${var.base_domain}
-    tls:
-      secretName: ${module.vault_tls[0].cert_secret}
-  routes:
-    - conditions:
-      - prefix: /
-      services:
-        - name: vault
-          port: 8200
+  hosts:
+    - vault.${var.base_domain}
+  gateways:
+    - vault-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: vault.${var.vault_namespace}.svc.cluster.local
+            port:
+              number: 8200
 YAML
   depends_on = [
-    kind_cluster.default,
-    helm_release.cert_manager,
-    helm_release.vault_deployment,
-    module.vault_tls,
+    kubectl_manifest.vault_istio_gateway
   ]
 }

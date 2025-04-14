@@ -53,8 +53,8 @@ resource "helm_release" "kasten_k10_deployment" {
 
   depends_on = [
     kind_cluster.default,
-    # kubectl_manifest.k10_namespace,
-    # module.k10_tls,
+    kubectl_manifest.k10_namespace,
+    module.k10_tls,
   ]
 }
 

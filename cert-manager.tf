@@ -32,3 +32,40 @@ resource "helm_release" "cert_manager" {
     helm_release.cilium,
   ]
 }
+
+
+### this is currenlty kinda double, check the module tls. It's not double as it's really a module
+# Root CA Secret (store your actual cert/key in variables or a secrets manager)
+resource "kubectl_manifest" "root_ca_secret" {
+  yaml_body = <<-YAML
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: root-cert
+      namespace: ${var.cert_manager_namespace}
+    type: kubernetes.io/tls
+    data:
+      tls.key: "${filebase64("${var.certs_path}/rootCA-key.pem")}"
+      tls.crt: "${filebase64("${var.certs_path}/rootCA.pem")}"
+  YAML
+
+  depends_on = [helm_release.cert_manager]
+}
+
+# Root CA ClusterIssuer
+resource "kubectl_manifest" "root_ca_issuer" {
+  yaml_body = <<YAML
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: root-ca-issuer
+spec:
+  ca:
+    secretName: root-cert
+YAML
+
+  depends_on = [
+    kubectl_manifest.root_ca_secret,
+    helm_release.cert_manager
+  ]
+}

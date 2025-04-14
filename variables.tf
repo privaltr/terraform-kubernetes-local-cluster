@@ -40,6 +40,12 @@ variable "cilium_namespace" {
   default     = "cilium"
 }
 
+variable "use_trow" {
+  description = "Decide if we want to use trow"
+  type        = bool
+  default     = false
+}
+
 variable "trow_namespace" {
   description = "Namespace where trow resources will be created"
   type        = string
@@ -111,7 +117,7 @@ variable "vault_namespace" {
 variable "enable_k10" {
   description = "Deploy kasten k10 into the cluster as a test application"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "k10_namespace" {
@@ -124,4 +130,22 @@ variable "k10_admin_password" {
   description = "Admin password"
   type        = string
   default     = "test"
+}
+
+variable "enable_velero" {
+  description = "Deploy kasten k10 into the cluster as a test application"
+  type        = bool
+  default     = false
+}
+
+variable "velero_namespace" {
+  description = "Namespace where Hashicorp resources will be created"
+  type        = string
+  default     = "velero"
+}
+
+variable "enable_metrics_server" {
+  description = ""
+  type        = bool
+  default     = true
 }

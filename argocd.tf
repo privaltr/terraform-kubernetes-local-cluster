@@ -65,7 +65,7 @@ YAML
 
 module "argo_tls" {
   source    = "./modules/tls-cert"
-  namespace = helm_release.argocd.namespace
+  namespace = "istio-system"
   dns_names = [
     "argocd.${var.base_domain}"
   ]
@@ -79,33 +79,59 @@ module "argo_tls" {
   ]
 }
 
-resource "kubectl_manifest" "argocd_ingress" {
+resource "kubectl_manifest" "argocd_istio_gateway" {
   yaml_body = <<YAML
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
 metadata:
-  name: argo
+  name: argo-gateway
   namespace: ${helm_release.argocd.namespace}
 spec:
-  virtualhost:
-    fqdn: argocd.${var.base_domain}
-    tls:
-      secretName: ${module.argo_tls.cert_secret}
-  routes:
-    - conditions:
-      - prefix: /
-      services:
-        - name: argocd-server
-          port: 80
-
+  selector:
+    istio: ingressgateway  # This matches the Istio ingress gateway service
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: ${module.argo_tls.cert_secret}  # Must exist in the same namespace as istio ingress gateway (default is istio-system)
+      hosts:
+        - argocd.${var.base_domain}
 YAML
   depends_on = [
     kind_cluster.default,
     helm_release.argocd,
-    helm_release.contour,
     helm_release.cert_manager,
-    kubectl_manifest.argo_crd,
     module.argo_tls,
+    helm_release.istio_ingress,
+  ]
+}
+resource "kubectl_manifest" "argocd_virtualservice" {
+  yaml_body = <<YAML
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: argo
+  namespace: ${helm_release.argocd.namespace}
+spec:
+  hosts:
+    - argocd.${var.base_domain}
+  gateways:
+    - argo-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: argocd-server.${helm_release.argocd.namespace}.svc.cluster.local
+            port:
+              number: 80
+YAML
+  depends_on = [
+    kubectl_manifest.argocd_istio_gateway
   ]
 }
 
