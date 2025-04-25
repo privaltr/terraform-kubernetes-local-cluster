@@ -43,7 +43,7 @@ variable "cilium_namespace" {
 variable "use_trow" {
   description = "Decide if we want to use trow"
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "trow_namespace" {
@@ -145,6 +145,19 @@ variable "velero_namespace" {
 }
 
 variable "enable_metrics_server" {
+  description = ""
+  type        = bool
+  default     = true
+}
+
+
+variable "kubeview_namespace" {
+  description = "Namespace where contour resources will be created"
+  type        = string
+  default     = "kubeview"
+}
+
+variable "enable_kubeview" {
   description = ""
   type        = bool
   default     = true
