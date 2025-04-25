@@ -61,7 +61,7 @@ resource "helm_release" "metal_lb" {
   depends_on = [
     kind_cluster.default,
     helm_release.cilium,
-    kubectl_manifest.contour_crd
+    # kubectl_manifest.contour_crd
   ]
 }
 

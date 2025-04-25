@@ -8,25 +8,26 @@ metadata:
   name: ${var.vault_namespace}
 YAML
   depends_on = [
-    kind_cluster.default
-  ]
-}
-
-# Vault TLS Module
-module "vault_tls" {
-  count     = var.enable_vault ? 1 : 0
-  source    = "./modules/tls-cert"
-  namespace = "istio-system"
-  dns_names = [
-    "vault.${var.base_domain}"
-  ]
-  certs_path = var.certs_path
-
-  depends_on = [
     kind_cluster.default,
-    helm_release.cert_manager,
+    # kubectl_manifest.Internal-only-NetworkPolicy
   ]
 }
+
+# # Vault TLS Module
+# module "vault_tls" {
+#   count     = var.enable_vault ? 1 : 0
+#   source    = "./modules/tls-cert"
+#   namespace = "istio-system"
+#   dns_names = [
+#     "vault.${var.base_domain}"
+#   ]
+#   certs_path = var.certs_path
+
+#   depends_on = [
+#     kind_cluster.default,
+#     helm_release.cert_manager,
+#   ]
+# }
 
 # # Vault PVC for Permanent Storage
 # resource "kubectl_manifest" "vault_pvc" {
@@ -166,40 +167,9 @@ resource "helm_release" "vault_deployment" {
     kind_cluster.default,
     helm_release.cert_manager,
     # kubectl_manifest.vault_pvc,
-    module.vault_tls,
+    # module.vault_tls,
   ]
 }
-
-# # Vault Ingress
-# resource "kubectl_manifest" "vault_ingress" {
-#   count     = var.enable_vault ? 1 : 0
-#   yaml_body = <<YAML
-# apiVersion: projectcontour.io/v1
-# kind: HTTPProxy
-# metadata:
-#   name: vault
-#   namespace: ${var.vault_namespace}
-# spec:
-#   virtualhost:
-#     fqdn: vault.${var.base_domain}
-#     tls:
-#       secretName: ${module.vault_tls[0].cert_secret}
-#   routes:
-#     - conditions:
-#       - prefix: /
-#       services:
-#         - name: vault
-#           port: 8200
-# YAML
-#   depends_on = [
-#     kind_cluster.default,
-#     helm_release.cert_manager,
-#     helm_release.vault_deployment,
-#     module.vault_tls,
-#   ]
-# }
-
-
 
 resource "kubectl_manifest" "vault_istio_gateway" {
   count     = var.enable_vault ? 1 : 0
@@ -219,7 +189,7 @@ spec:
         protocol: HTTPS
       tls:
         mode: SIMPLE
-        credentialName: ${module.vault_tls[0].cert_secret}  # Must exist in the same namespace as istio ingress gateway (default is istio-system)
+        credentialName: vault-https-cert  # Must exist in the same namespace as istio ingress gateway (default is istio-system)
       hosts:
         - vault.${var.base_domain}
 YAML
@@ -227,8 +197,9 @@ YAML
     kind_cluster.default,
     helm_release.vault_deployment,
     helm_release.cert_manager,
-    module.vault_tls,
+    # module.vault_tls,
     helm_release.istio_ingress,
+    kubectl_manifest.vault-certificate
   ]
 }
 resource "kubectl_manifest" "vault_virtualservice" {
@@ -256,5 +227,26 @@ spec:
 YAML
   depends_on = [
     kubectl_manifest.vault_istio_gateway
+  ]
+}
+
+resource "kubectl_manifest" "vault-certificate" {
+  yaml_body = <<YAML
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: vault-tls-certificate
+  namespace: istio-system
+spec:
+  secretName: vault-https-cert
+  dnsNames:
+    - "vault.${var.base_domain}"
+  issuerRef:
+    name: root-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io  # REQUIRED field
+YAML
+  depends_on = [
+    kubectl_manifest.root_ca_issuer,
   ]
 }

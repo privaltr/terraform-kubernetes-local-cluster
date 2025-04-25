@@ -3,6 +3,17 @@ locals {
   root_cert_path         = "${var.certs_path}/rootCA.pem"
 }
 
+# resource "local_file" "custom_resolv_conf" {
+#   content = <<-CONF
+#     nameserver 10.96.0.10
+#     nameserver 172.18.0.1
+#     # options edns0 ndots:0
+#     search local-cluster.dev svc.cluster.local cluster.local
+#     options ndots:5
+#   CONF
+#   filename = "${path.module}/custom_resolv.conf"
+# }
+
 resource "kind_cluster" "default" {
   name            = var.k8s_cluster_name
   kubeconfig_path = var.k8s_config_path
@@ -50,6 +61,11 @@ resource "kind_cluster" "default" {
         host_path      = local.root_cert_path
         container_path = "${local.containerd_config_path}/trow.${var.base_domain}/ca.crt"
       }
+      # extra_mounts {
+      #   host_path      = local_file.custom_resolv_conf.filename
+      #   container_path = "/etc/resolv.conf"
+      # }
+
     }
 
     node {
@@ -60,6 +76,10 @@ resource "kind_cluster" "default" {
         host_path      = local.root_cert_path
         container_path = "${local.containerd_config_path}/trow.${var.base_domain}/ca.crt"
       }
+      # extra_mounts {
+      #   host_path      = local_file.custom_resolv_conf.filename
+      #   container_path = "/etc/resolv.conf"
+      # }
     }
 
     node {
@@ -70,12 +90,17 @@ resource "kind_cluster" "default" {
         host_path      = local.root_cert_path
         container_path = "${local.containerd_config_path}/trow.${var.base_domain}/ca.crt"
       }
+      # extra_mounts {
+      #   host_path      = local_file.custom_resolv_conf.filename
+      #   container_path = "/etc/resolv.conf"
+      # }
     }
 
     networking {
       disable_default_cni = var.use_cilium
     }
   }
+  # depends_on = [local_file.custom_resolv_conf]
 }
 
 resource "kubectl_manifest" "additional_namespaces" {

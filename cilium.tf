@@ -40,22 +40,6 @@ resource "helm_release" "cilium" {
   depends_on = [kind_cluster.default]
 }
 
-module "cilium_tls" {
-  count     = var.use_cilium ? 1 : 0
-  source    = "./modules/tls-cert"
-  namespace = helm_release.cilium[0].namespace
-  dns_names = [
-    "hubble.${var.base_domain}"
-  ]
-  certs_path = var.certs_path
-
-  depends_on = [
-    kind_cluster.default,
-    helm_release.cilium,
-    helm_release.cert_manager,
-  ]
-}
-
 resource "kubectl_manifest" "hubble_grpc_service" {
   count     = var.use_cilium ? 1 : 0
   yaml_body = <<YAML
@@ -77,49 +61,94 @@ YAML
   depends_on = [
     kind_cluster.default,
     helm_release.cilium,
-    helm_release.contour,
+    # helm_release.contour,
     helm_release.cert_manager,
   ]
 }
 
-
-resource "kubectl_manifest" "hubble_ingress" {
-  count     = var.use_cilium ? 1 : 0
+resource "kubectl_manifest" "cilium_virtualservice" {
   yaml_body = <<YAML
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
 metadata:
   name: hubble-ui
   namespace: ${helm_release.cilium[0].namespace}
 spec:
-  virtualhost:
-    fqdn: hubble.${var.base_domain}
-    tls:
-      secretName: ${module.cilium_tls[0].cert_secret}
-  routes:
-    - conditions:
-      - prefix: /api
-      enableWebsockets: true
-      services:
-        - name: hubble-ui-grpc
-          port: 80
-          protocol: h2c
-      timeoutPolicy:
-        response: 1h
+  hosts:
+    - hubble.${var.base_domain}
+  gateways:
+    - hubble-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /api
+      route:
+        - destination:
+            host: hubble-ui-grpc.${helm_release.cilium[0].namespace}.svc.cluster.local
+            port:
+              number: 80
+    - match:
+        - uri:
+            prefix: /
+      route:
+        - destination:
+            host: hubble-ui.${helm_release.cilium[0].namespace}.svc.cluster.local
+            port:
+              number: 80
+YAML
+  depends_on = [
+    kubectl_manifest.hubble_istio_gateway
+  ]
+}
 
-    - conditions:
-      - prefix: /
-      enableWebsockets: true
-      services:
-        - name: hubble-ui
-          port: 80
+resource "kubectl_manifest" "hubble_istio_gateway" {
+  yaml_body = <<YAML
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: hubble-gateway
+  namespace: ${helm_release.cilium[0].namespace}
+spec:
+  selector:
+    istio: ingressgateway  # This matches the Istio ingress gateway service
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: hubble-https-cert  # Must exist in the same namespace as istio ingress gateway (default is istio-system)
+      hosts:
+        - hubble.${var.base_domain}
 YAML
   depends_on = [
     kind_cluster.default,
     helm_release.cilium,
-    helm_release.contour,
     helm_release.cert_manager,
-    kubectl_manifest.hubble_grpc_service,
-    module.cilium_tls,
+    # module.cilium_tls,
+    helm_release.istio_ingress,
+    kubectl_manifest.hubble-certificate
+  ]
+}
+
+resource "kubectl_manifest" "hubble-certificate" {
+  yaml_body = <<YAML
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: hubble-tls-certificate
+  namespace: istio-system
+spec:
+  secretName: hubble-https-cert
+  dnsNames:
+    - "hubble.${var.base_domain}"
+  issuerRef:
+    name: root-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io  # REQUIRED field
+YAML
+  depends_on = [
+    kubectl_manifest.root_ca_issuer,
   ]
 }

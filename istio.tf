@@ -54,7 +54,45 @@ resource "helm_release" "istio_ingress" {
     value = "ingressgateway"
   }
 
+  # Assign a static IP from MetalLB's pool
+  set {
+    name  = "service.loadBalancerIP"
+    value = "172.18.0.200"  # Replace with your desired static IP
+  }
+
   depends_on = [
     helm_release.istiod,
   ]
 }
+
+# resource "kubectl_manifest" "patch_coredns" {
+#   yaml_body = <<YAML
+# apiVersion: v1
+# kind: ConfigMap
+# metadata:
+#   name: coredns
+#   namespace: kube-system
+# data:
+#   Corefile: |
+#     .:53 {
+#         errors
+#         health {
+#            lameduck 5s
+#         }
+#         ready
+#         kubernetes cluster.local in-addr.arpa ip6.arpa {
+#            pods insecure
+#            fallthrough in-addr.arpa ip6.arpa
+#            ttl 30
+#         }
+#         prometheus :9153
+#         forward . /etc/resolv.conf
+#         cache 30
+#         loop
+#         reload
+#         loadbalance
+#     }
+# YAML
+
+#   depends_on = [kind_cluster.default]
+# }

@@ -8,55 +8,14 @@ resource "helm_release" "trow" {
   namespace        = var.trow_namespace
   create_namespace = true
 
+  set {
+    name  = "ingress.enabled"
+    value = "false"  # Since you're using Istio
+  }
+
   depends_on = [
     kind_cluster.default,
     helm_release.cilium,
-  ]
-}
-
-module "trow_tls" {
-  count     = var.use_trow ? 1 : 0
-  source    = "./modules/tls-cert"
-  namespace = var.trow_namespace
-  dns_names = [
-    "trow.${var.base_domain}"
-  ]
-  certs_path = var.certs_path
-
-  depends_on = [
-    kind_cluster.default,
-    helm_release.trow,
-    helm_release.cert_manager,
-  ]
-}
-
-resource "kubectl_manifest" "trow_ingress" {
-  count     = var.use_trow ? 1 : 0
-  yaml_body = <<YAML
-apiVersion: projectcontour.io/v1
-kind: HTTPProxy
-metadata:
-  name: trow
-  namespace: ${var.trow_namespace}
-spec:
-  virtualhost:
-    fqdn: trow.${var.base_domain}
-    tls:
-      secretName: ${module.trow_tls[0].cert_secret}
-  routes:
-    - conditions:
-      - prefix: /
-      services:
-        - name: trow
-          port: 8000
-
-YAML
-  depends_on = [
-    kind_cluster.default,
-    helm_release.trow,
-    helm_release.contour,
-    helm_release.cert_manager,
-    module.trow_tls,
   ]
 }
 
@@ -75,8 +34,92 @@ YAML
   depends_on = [
     kind_cluster.default,
     helm_release.trow,
-    helm_release.contour,
+    # helm_release.contour,
     helm_release.cert_manager,
-    module.trow_tls,
+    # module.trow_tls,
+    kubectl_manifest.trow_certificate
+  ]
+}
+
+locals {
+  trow_cert_secret = "trow-https-cert"
+}
+
+resource "kubectl_manifest" "trow_virtualservice" {
+  yaml_body = <<YAML
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: trow
+  namespace: ${var.trow_namespace}
+spec:
+  hosts:
+    - trow.${var.base_domain}
+  gateways:
+    - trow-gateway
+  http:
+    - match:
+      - uri:
+          prefix: /
+      route:
+      - destination:
+          host: trow.${var.trow_namespace}.svc.cluster.local
+          port:
+            number: 8000
+YAML
+  depends_on = [
+    kubectl_manifest.trow_istio_gateway,
+    helm_release.trow
+  ]
+}
+
+resource "kubectl_manifest" "trow_istio_gateway" {
+  yaml_body = <<YAML
+apiVersion: networking.istio.io/v1beta1
+kind: Gateway
+metadata:
+  name: trow-gateway
+  namespace: ${var.trow_namespace}
+spec:
+  selector:
+    istio: ingressgateway
+  servers:
+    - port:
+        number: 443
+        name: https
+        protocol: HTTPS
+      tls:
+        mode: SIMPLE
+        credentialName: ${local.trow_cert_secret}
+      hosts:
+        - trow.${var.base_domain}
+YAML
+  depends_on = [
+    kind_cluster.default,
+    helm_release.vault_deployment,
+    helm_release.cert_manager,
+    helm_release.istio_ingress,
+    kubectl_manifest.trow_certificate
+  ]
+}
+
+resource "kubectl_manifest" "trow_certificate" {
+  yaml_body = <<YAML
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: trow-tls-certificate
+  namespace: istio-system
+spec:
+  secretName: ${local.trow_cert_secret}
+  dnsNames:
+    - "trow.${var.base_domain}"
+  issuerRef:
+    name: root-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+YAML
+  depends_on = [
+    helm_release.cert_manager
   ]
 }

@@ -13,6 +13,19 @@ resource "kubectl_manifest" "argo_crd" {
   ]
 }
 
+resource "kubectl_manifest" "argocd_namespace" {
+  yaml_body = <<YAML
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${var.argocd_namespace}
+YAML
+  depends_on = [
+    kind_cluster.default,
+    # kubectl_manifest.Internal-only-NetworkPolicy
+  ]
+}
+
 # https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd
 resource "helm_release" "argocd" {
   name             = "argocd"
@@ -58,6 +71,7 @@ YAML
   ]
   depends_on = [
     kind_cluster.default,
+    kubectl_manifest.argocd_namespace,
     helm_release.cilium,
     kubectl_manifest.argo_crd,
   ]
@@ -99,6 +113,7 @@ spec:
         credentialName: ${module.argo_tls.cert_secret}  # Must exist in the same namespace as istio ingress gateway (default is istio-system)
       hosts:
         - argocd.${var.base_domain}
+        
 YAML
   depends_on = [
     kind_cluster.default,
@@ -129,6 +144,8 @@ spec:
             host: argocd-server.${helm_release.argocd.namespace}.svc.cluster.local
             port:
               number: 80
+      # ipBlocks:
+      #   - "192.168.0.0/16"
 YAML
   depends_on = [
     kubectl_manifest.argocd_istio_gateway
