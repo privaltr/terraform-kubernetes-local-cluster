@@ -231,6 +231,7 @@ YAML
 }
 
 resource "kubectl_manifest" "vault-certificate" {
+  count     = var.enable_vault ? 1 : 0
   yaml_body = <<YAML
 apiVersion: cert-manager.io/v1
 kind: Certificate

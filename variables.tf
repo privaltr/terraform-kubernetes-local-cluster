@@ -43,13 +43,27 @@ variable "cilium_namespace" {
 variable "use_trow" {
   description = "Decide if we want to use trow"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "trow_namespace" {
   description = "Namespace where trow resources will be created"
   type        = string
   default     = "trow"
+}
+
+
+variable "use_harbor" {
+  description = "Deploy httpbin into the cluster as a test application"
+  type        = bool
+  default     = true
+}
+
+
+variable "harbor_namespace" {
+  description = "Namespace where Hashicorp resources will be created"
+  type        = string
+  default     = "harbor"
 }
 
 variable "root_cert_name" {

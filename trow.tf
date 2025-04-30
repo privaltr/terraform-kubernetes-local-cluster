@@ -46,6 +46,7 @@ locals {
 }
 
 resource "kubectl_manifest" "trow_virtualservice" {
+  count            = var.use_trow ? 1 : 0
   yaml_body = <<YAML
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
@@ -74,6 +75,7 @@ YAML
 }
 
 resource "kubectl_manifest" "trow_istio_gateway" {
+  count            = var.use_trow ? 1 : 0
   yaml_body = <<YAML
 apiVersion: networking.istio.io/v1beta1
 kind: Gateway
@@ -104,6 +106,7 @@ YAML
 }
 
 resource "kubectl_manifest" "trow_certificate" {
+  count            = var.use_trow ? 1 : 0
   yaml_body = <<YAML
 apiVersion: cert-manager.io/v1
 kind: Certificate
@@ -123,3 +126,5 @@ YAML
     helm_release.cert_manager
   ]
 }
+
+# https://trow.local-cluster.dev/v2/_catalog

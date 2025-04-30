@@ -57,9 +57,13 @@ resource "kind_cluster" "default" {
       */
       /* Mount the self-signed cert into the node so it can communicate with
       ingresses */
+      # extra_mounts {
+      #   host_path      = local.root_cert_path
+      #   container_path = "${local.containerd_config_path}/trow.${var.base_domain}/ca.crt"
+      # }
       extra_mounts {
         host_path      = local.root_cert_path
-        container_path = "${local.containerd_config_path}/trow.${var.base_domain}/ca.crt"
+        container_path = "${local.containerd_config_path}/harbor.${var.base_domain}/ca.crt"
       }
       # extra_mounts {
       #   host_path      = local_file.custom_resolv_conf.filename
@@ -72,10 +76,14 @@ resource "kind_cluster" "default" {
       role = "worker"
       /* Mount the self-signed cert into the node so it can communicate with
       ingresses */
+      # extra_mounts {
+      #   host_path      = local.root_cert_path
+      #   container_path = "${local.containerd_config_path}/trow.${var.base_domain}/ca.crt"
+      # }
       extra_mounts {
         host_path      = local.root_cert_path
-        container_path = "${local.containerd_config_path}/trow.${var.base_domain}/ca.crt"
-      }
+        container_path = "${local.containerd_config_path}/harbor.${var.base_domain}/ca.crt"
+      }      
       # extra_mounts {
       #   host_path      = local_file.custom_resolv_conf.filename
       #   container_path = "/etc/resolv.conf"
@@ -86,9 +94,13 @@ resource "kind_cluster" "default" {
       role = "worker"
       /* Mount the self-signed cert into the node so it can communicate with
       ingresses */
+      # extra_mounts {
+      #   host_path      = local.root_cert_path
+      #   container_path = "${local.containerd_config_path}/trow.${var.base_domain}/ca.crt"
+      # }
       extra_mounts {
         host_path      = local.root_cert_path
-        container_path = "${local.containerd_config_path}/trow.${var.base_domain}/ca.crt"
+        container_path = "${local.containerd_config_path}/harbor.${var.base_domain}/ca.crt"
       }
       # extra_mounts {
       #   host_path      = local_file.custom_resolv_conf.filename
