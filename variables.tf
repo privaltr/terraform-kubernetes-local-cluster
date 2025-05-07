@@ -129,15 +129,15 @@ variable "vault_namespace" {
 }
 
 variable "enable_k10" {
-  description = "Deploy kasten k10 into the cluster as a test application"
+  description = "Deploy k10 for backups, but note that it’s currently not working due to the missing CSI driver"
   type        = bool
   default     = false
 }
 
 variable "k10_namespace" {
-  description = "Namespace where Hashicorp resources will be created"
+  description = "Namespace where k10 resources will be created"
   type        = string
-  default     = "kasten-k10"
+  default     = "k10"
 }
 
 variable "k10_admin_password" {
@@ -147,13 +147,13 @@ variable "k10_admin_password" {
 }
 
 variable "enable_velero" {
-  description = "Deploy kasten k10 into the cluster as a test application"
+  description = "Deploy Velero for backups, but note that it’s currently not working due to the missing CSI driver"
   type        = bool
   default     = false
 }
 
 variable "velero_namespace" {
-  description = "Namespace where Hashicorp resources will be created"
+  description = "Namespace where Velero resources will be created"
   type        = string
   default     = "velero"
 }
