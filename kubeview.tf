@@ -60,6 +60,7 @@ YAML
 
 
 resource "kubectl_manifest" "kubeview_virtualservice" {
+  count     = var.enable_kubeview ? 1 : 0
   yaml_body = <<YAML
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
@@ -88,6 +89,7 @@ YAML
 }
 
 resource "kubectl_manifest" "kubeview_istio_gateway" {
+  count     = var.enable_kubeview ? 1 : 0
   yaml_body = <<YAML
 apiVersion: networking.istio.io/v1beta1
 kind: Gateway
@@ -118,6 +120,7 @@ YAML
 }
 
 resource "kubectl_manifest" "kubeview_certificate" {
+  count     = var.enable_kubeview ? 1 : 0
   yaml_body = <<YAML
 apiVersion: cert-manager.io/v1
 kind: Certificate
